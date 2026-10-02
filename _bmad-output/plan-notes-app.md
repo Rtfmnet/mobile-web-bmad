@@ -43,19 +43,22 @@ context: []
 
 ## Code Map
 
-- Project root -- greenfield; no `package.json`, app source, or README exists yet.
-- `skills-lock.json` -- existing workspace setup metadata; preserve it.
-- `_bmad/` and `.agents/` -- installed BMad runtime and skills; do not modify them for the app.
-- `_bmad-output/` -- loose planning artifacts; no active initiative is configured.
+- `package.json` and `package-lock.json` -- React/Vite/Firebase dependencies, emulator, test, and deployment commands.
+- `src/App.tsx` and `src/styles.css` -- responsive Russian sign-in and notes interface.
+- `src/lib/firebase.ts` and `src/lib/notes.ts` -- Firebase client, auth/database connection, and owner-scoped CRUD.
+- `firestore.rules` and `firebase.json` -- Firestore owner-only rules and Firebase Hosting/emulator configuration.
+- `.env.local` -- ignored local Firebase Web App configuration; never commit or paste its contents. `.env.example` documents required names.
+- `README.md` -- Firebase setup, local run, security and deployment instructions.
+- `skills-lock.json`, `_bmad/`, `.agents/`, `.claude/`, `.vscode/` -- existing workspace/BMad setup; preserve them.
 
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `package.json`, `index.html`, `vite.config.ts`, `tsconfig*.json` -- create the React/TypeScript Vite app shell and scripts -- provide a small static build suitable for Firebase Hosting.
-- [ ] `src/` -- implement responsive sign-in, note list, create/edit/delete and clear loading, empty, error, and missing-configuration states -- support the phone-to-computer workflow.
-- [ ] `src/lib/firebase.ts`, `.env.example` -- configure the browser SDK from Vite environment variables -- make it easy to connect the user's Firebase web app without committing its config.
-- [ ] `firestore.rules`, `firebase.json` -- configure per-user Firestore access and static Hosting for the production build -- protect note data and support deployment.
-- [ ] `README.md`, `.gitignore` -- document local setup, Firebase Auth/Firestore setup, Spark quotas, Firebase CLI/GitHub deployment, and staying off the paid Blaze plan -- make external setup reproducible and avoid billing surprises.
+- [x] `package.json`, `index.html`, `vite.config.ts`, `tsconfig*.json` -- create the React/TypeScript Vite app shell and scripts -- provide a small static build suitable for Firebase Hosting.
+- [x] `src/` -- implement responsive sign-in, note list, create/edit/delete and clear loading, empty, error, and missing-configuration states -- support the phone-to-computer workflow.
+- [x] `src/lib/firebase.ts`, `.env.example` -- configure the browser SDK from Vite environment variables -- make it easy to connect the user's Firebase web app without committing its config.
+- [x] `firestore.rules`, `firebase.json` -- configure per-user Firestore access and static Hosting for the production build -- protect note data and support deployment.
+- [x] `README.md`, `.gitignore` -- document local setup, Firebase Auth/Firestore setup, Spark quotas, Firebase CLI/GitHub deployment, and staying off the paid Blaze plan -- make external setup reproducible and avoid billing surprises.
 
 **Acceptance Criteria:**
 - Given the app is configured with a Firebase project, when a user signs up and signs in on a phone browser, then they can create, edit, and delete plain-text notes.
@@ -68,6 +71,11 @@ context: []
 ## Implementation Notes
 
 - Git is initialized but has no `HEAD` commit; the implementation baseline is recorded as `NO_COMMIT`. Preserve all pre-existing untracked files and do not create a commit.
+- 2026-10-03 handoff: Firebase project `mobile-web-notes` is on Spark; Google Analytics was disabled; Email/Password Auth is enabled; default Firestore database is in `europe-central2` (Warsaw); owner-only `firestore.rules` are deployed; Hosting is live at `https://mobile-web-notes.web.app/`.
+- Firebase Web App values are in ignored `.env.local`; do not publish their contents or replace the file. Firebase CLI is authenticated locally as the project owner.
+- User confirmed that two notes were added on the computer. **Pending manual check:** open the hosted app on the phone, sign in with the same email, and confirm both notes appear; then test one edit and delete. If notes are absent, verify the same account first; do not troubleshoot the old LAN/Vite URL.
+- **Source recovery is still pending:** the repo has no first Git commit and the implementation files are not yet saved to GitHub. Preserve all existing user/BMad files; do not create a commit or push without the user's explicit request.
+- Verified before this handoff: production build passed, 10 UI tests passed, 2 Firestore rules tests passed, and `npm audit --omit=dev` reported zero vulnerabilities.
 
 ## Plan Change Log
 
