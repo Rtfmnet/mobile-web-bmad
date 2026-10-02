@@ -1,8 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
+  GoogleAuthProvider,
+  linkWithRedirect,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithRedirect,
   signOut,
   type User,
 } from "firebase/auth";
@@ -17,7 +21,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { auth, db, firebaseConfigured } from "./lib/firebase";
+import { auth, db, firebaseConfigured, googleProvider } from "./lib/firebase";
 import { removeNote, saveNote, subscribeToNotes, type Note } from "./lib/notes";
 
 type Notice = { kind: "error" | "success"; text: string };
@@ -30,6 +34,14 @@ function authMessage(error: unknown) {
   if (code === "auth/weak-password") return "Пароль должен содержать не менее 6 символов.";
   if (code === "auth/invalid-email") return "Проверьте формат email.";
   if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте чуть позже.";
+  if (code === "auth/account-exists-with-different-credential") {
+    return "У этого email уже есть аккаунт. Войди по паролю, затем подключи Google в профиле.";
+  }
+  if (code === "auth/credential-already-in-use") {
+    return "Этот Google-аккаунт уже связан с другим профилем. Существующие заметки не объединены.";
+  }
+  if (code === "auth/operation-not-allowed") return "Вход через Google ещё не включён в Firebase.";
+  if (code === "auth/unauthorized-domain") return "Этот адрес сайта не разрешён для входа через Firebase.";
   return "Не удалось войти. Проверьте подключение и попробуйте ещё раз.";
 }
 
@@ -70,7 +82,13 @@ function MissingConfiguration() {
   );
 }
 
-function AuthScreen() {
+function AuthScreen({
+  redirectError,
+  clearRedirectError,
+}: {
+  redirectError: string;
+  clearRedirectError: () => void;
+}) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -83,6 +101,7 @@ function AuthScreen() {
 
     setBusy(true);
     setError("");
+    clearRedirectError();
     try {
       if (mode === "signup") {
         await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -95,6 +114,22 @@ function AuthScreen() {
       setBusy(false);
     }
   }
+
+  async function continueWithGoogle() {
+    if (!auth) return;
+
+    setBusy(true);
+    setError("");
+    clearRedirectError();
+    try {
+      await signInWithRedirect(auth, googleProvider);
+    } catch (requestError) {
+      setError(authMessage(requestError));
+      setBusy(false);
+    }
+  }
+
+  const visibleError = error || redirectError;
 
   return (
     <main className="auth-screen">
@@ -135,19 +170,26 @@ function AuthScreen() {
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-            {error && <p className="form-error" role="alert">{error}</p>}
+            {visibleError && <p className="form-error" role="alert">{visibleError}</p>}
             <button className="button button-primary auth-submit" type="submit" disabled={busy}>
               {busy ? <LoaderCircle className="spin" size={17} /> : null}
               {busy ? "Подождите..." : mode === "login" ? "Войти" : "Зарегистрироваться"}
             </button>
           </form>
 
+          <div className="auth-divider"><span>ИЛИ</span></div>
+          <button className="button button-google" type="button" onClick={continueWithGoogle} disabled={busy}>
+            <span className="google-mark" aria-hidden="true">G</span>
+            Продолжить с Google
+          </button>
+
           <p className="auth-switch">
             {mode === "login" ? "Впервые здесь?" : "Уже есть аккаунт?"}{" "}
-            <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}>
+            <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); clearRedirectError(); }}>
               {mode === "login" ? "Создать аккаунт" : "Войти"}
             </button>
           </p>
+          <p className="auth-note">Если у тебя уже есть заметки, войди в тот аккаунт и свяжи Google.</p>
           <p className="privacy-note"><LockKeyhole size={13} /> Заметки видны только в вашем аккаунте</p>
         </div>
       </section>
@@ -159,6 +201,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [redirectError, setRedirectError] = useState("");
   const [notesLoading, setNotesLoading] = useState(false);
   const [notesLoadError, setNotesLoadError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -173,6 +216,10 @@ export default function App() {
       setSessionLoading(false);
       return;
     }
+
+    void getRedirectResult(auth).catch((requestError) => {
+      setRedirectError(authMessage(requestError));
+    });
 
     return onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
@@ -214,8 +261,11 @@ export default function App() {
   if (sessionLoading) {
     return <main className="loading-screen"><LoaderCircle className="spin" size={22} />Подключаем аккаунт...</main>;
   }
-  if (!user) return <AuthScreen />;
+  if (!user) return <AuthScreen redirectError={redirectError} clearRedirectError={() => setRedirectError("")} />;
 
+  const googleLinked = user.providerData.some(
+    (provider) => provider.providerId === GoogleAuthProvider.PROVIDER_ID,
+  );
   const selectedNote = notes.find((note) => note.id === selectedId) ?? null;
   const isDirty = isNewNote
     ? Boolean(draft.title.trim() || draft.body.trim())
@@ -299,12 +349,31 @@ export default function App() {
     await signOut(auth);
   }
 
+  async function connectGoogle() {
+    if (!user || googleLinked) return;
+
+    setNotice(null);
+    try {
+      await linkWithRedirect(user, googleProvider);
+    } catch (requestError) {
+      setNotice({ kind: "error", text: authMessage(requestError) });
+    }
+  }
+
   return (
     <main className={`app-shell${mobileEditorOpen ? " has-editor" : ""}`}>
       <header className="topbar">
         <Brand />
         <div className="account-controls">
           <span className="account-email" title={user.email ?? ""}>{user.email}</span>
+          {googleLinked ? (
+            <span className="google-linked" title="Google привязан к этому аккаунту"><span className="google-mark" aria-hidden="true">G</span></span>
+          ) : (
+            <button className="button button-quiet google-link-button" type="button" onClick={connectGoogle} title="Связать Google, сохранив эти заметки">
+              <span className="google-mark" aria-hidden="true">G</span>
+              <span>Связать Google</span>
+            </button>
+          )}
           <button className="button button-quiet signout-button" type="button" onClick={leaveAccount}>
             <LogOut size={16} /> <span>Выйти</span>
           </button>

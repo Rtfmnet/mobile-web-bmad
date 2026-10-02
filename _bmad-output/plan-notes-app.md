@@ -14,6 +14,10 @@ review_loop_iteration: 0
 context: []
 ---
 
+## Plain-Language Solution
+
+One website on both devices. Firebase handles site hosting, login, and note storage. Users only see their own notes. No app or server needed.
+
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
 
 ## Intent
@@ -70,18 +74,27 @@ context: []
 
 ## Implementation Notes
 
-- Git is initialized but has no `HEAD` commit; the implementation baseline is recorded as `NO_COMMIT`. Preserve all pre-existing untracked files and do not create a commit.
+- The initial app snapshot is on `main` at commit `9cc51df`, synced with `origin/main`; its original build baseline was `NO_COMMIT`. The Google sign-in follow-up is currently uncommitted. Do not commit or push without the user's explicit request.
 - 2026-10-03 handoff: Firebase project `mobile-web-notes` is on Spark; Google Analytics was disabled; Email/Password Auth is enabled; default Firestore database is in `europe-central2` (Warsaw); owner-only `firestore.rules` are deployed; Hosting is live at `https://mobile-web-notes.web.app/`.
 - Firebase Web App values are in ignored `.env.local`; do not publish their contents or replace the file. Firebase CLI is authenticated locally as the project owner.
-- User confirmed that two notes were added on the computer. **Pending manual check:** open the hosted app on the phone, sign in with the same email, and confirm both notes appear; then test one edit and delete. If notes are absent, verify the same account first; do not troubleshoot the old LAN/Vite URL.
-- **Source recovery is still pending:** the repo has no first Git commit and the implementation files are not yet saved to GitHub. Preserve all existing user/BMad files; do not create a commit or push without the user's explicit request.
-- Verified before this handoff: production build passed, 10 UI tests passed, 2 Firestore rules tests passed, and `npm audit --omit=dev` reported zero vulnerabilities.
+- Google sign-in follow-up: the owner enabled Google in Firebase Authentication. The update with mobile redirect sign-in and a signed-in **Link Google** action is deployed; linking an existing password account preserves the Firebase UID and notes. **Pending manual check:** sign into the existing account by email/password, link the same Google account, verify the notes remain visible, then sign out and try **Continue with Google** on another device.
+- User confirmed that two notes added on the computer are visible on both phone and computer when signed into the same account. Cross-device sync is manually verified; edit/delete behavior on mobile remains unverified.
+- The original app snapshot and Firebase project bootstrap are on GitHub. Google sign-in code, README updates, and this follow-up note are local and not yet in GitHub.
+- Verified for Google sign-in update: 13 UI tests pass, TypeScript/Vite production build passes, and the deployed page displays the Google option. Firestore rules were unchanged; prior rule tests passed (2 cases).
 
 ## Plan Change Log
 
 ## Review Triage Log
 
 - medium | patch | `src/App.tsx`: A failed Firestore subscription looked like an empty account while sync remained marked active; added a distinct load-error state and regression coverage. Verified by `npm test` (10 passed).
+
+## Architecture
+
+- **Web app:** React/Vite builds a static single-page app. Firebase Hosting serves its files over HTTPS through Firebase's CDN.
+- **Sign-in:** Firebase Authentication. Email/password and linked Google sign-in resolve to the same Firebase user ID.
+- **Notes database:** Cloud Firestore Standard in `europe-central2` (Warsaw). Notes live at `/users/{uid}/notes/{noteId}`; Firestore Security Rules restrict access to the matching signed-in user.
+- **Request path:** Phone/computer browser → Firebase Hosting CDN for app files; browser → Firebase Auth and Firestore APIs for sign-in and notes. There is no separate application server.
+- **Privacy boundary:** The Hosting CDN serves static app assets, not note contents. Private note reads/writes go to Firestore and are checked by Security Rules.
 
 ## Design Notes
 

@@ -5,7 +5,7 @@
 ## Стек
 
 - React, TypeScript и Vite — интерфейс и сборка статического сайта.
-- Firebase Authentication — регистрация и вход по email/паролю.
+- Firebase Authentication — регистрация и вход по email/паролю или Google.
 - Cloud Firestore — заметки; `firestore.rules` разрешает доступ только владельцу.
 - Firebase Hosting — публикация сайта.
 
@@ -14,7 +14,7 @@ Firebase Web API key и остальные значения Web App config не 
 ## Подготовка Firebase
 
 1. Создайте Firebase project на плане Spark. Не подключайте Cloud Billing и не переходите на Blaze для этого проекта.
-2. В **Authentication → Sign-in method** включите **Email/Password**.
+2. В **Authentication → Sign-in method** включите **Email/Password** и **Google**.
 3. Создайте базу в **Firestore Database** в режиме Production. Выберите регион рядом с пользователями.
 4. Установите Firebase CLI и войдите:
 
@@ -43,6 +43,8 @@ Firebase Web API key и остальные значения Web App config не 
    ```
 
    Откройте URL, показанный Vite, зарегистрируйтесь и создайте заметку.
+
+Если у вас уже есть заметки в аккаунте email/пароль, сначала войдите в него и нажмите **Связать Google** в шапке приложения. Это подключит Google к тому же Firebase user ID и сохранит доступ к текущим заметкам. После привязки можно входить через **Продолжить с Google** на других устройствах.
 
 ## Публикация
 

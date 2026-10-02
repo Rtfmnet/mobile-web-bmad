@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 
 const mocks = vi.hoisted(() => {
-  type TestUser = { uid: string; email: string | null };
+  type TestUser = { uid: string; email: string | null; providerData: Array<{ providerId: string }> };
   type TestNote = { id: string; title: string; body: string; createdAt: number; updatedAt: number };
   let authObserver: ((user: TestUser | null) => void) | undefined;
 
@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
     firebaseConfigured: true,
     auth: {},
     db: {},
+    googleProvider: { providerId: "google.com" },
     notes: [] as TestNote[],
     authListener: vi.fn((_auth: unknown, observer: (user: TestUser | null) => void) => {
       authObserver = observer;
@@ -20,6 +21,9 @@ const mocks = vi.hoisted(() => {
     }),
     emitAuthState: (user: TestUser | null) => authObserver?.(user),
     signIn: vi.fn(),
+    signInWithRedirect: vi.fn(),
+    getRedirectResult: vi.fn(),
+    linkWithRedirect: vi.fn(),
     signUp: vi.fn(),
     signOut: vi.fn(),
     subscribeToNotes: vi.fn(),
@@ -30,8 +34,12 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("firebase/auth", () => ({
   createUserWithEmailAndPassword: mocks.signUp,
+  GoogleAuthProvider: { PROVIDER_ID: "google.com" },
+  getRedirectResult: mocks.getRedirectResult,
+  linkWithRedirect: mocks.linkWithRedirect,
   onAuthStateChanged: mocks.authListener,
   signInWithEmailAndPassword: mocks.signIn,
+  signInWithRedirect: mocks.signInWithRedirect,
   signOut: mocks.signOut,
 }));
 
@@ -39,6 +47,7 @@ vi.mock("./lib/firebase", () => ({
   get auth() { return mocks.auth; },
   get db() { return mocks.db; },
   get firebaseConfigured() { return mocks.firebaseConfigured; },
+  get googleProvider() { return mocks.googleProvider; },
 }));
 
 vi.mock("./lib/notes", () => ({
@@ -47,12 +56,15 @@ vi.mock("./lib/notes", () => ({
   subscribeToNotes: mocks.subscribeToNotes,
 }));
 
-const testUser = { uid: "user-1", email: "reader@example.com" };
+const testUser = { uid: "user-1", email: "reader@example.com", providerData: [] as Array<{ providerId: string }> };
 
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.firebaseConfigured = true;
   mocks.notes = [];
+  mocks.getRedirectResult.mockResolvedValue(null);
+  mocks.signInWithRedirect.mockResolvedValue(undefined);
+  mocks.linkWithRedirect.mockResolvedValue(undefined);
   mocks.subscribeToNotes.mockImplementation((
     _userId: string,
     onNotes: (notes: typeof mocks.notes) => void,
@@ -112,6 +124,29 @@ describe("notes app", () => {
 
     expect(mocks.signIn).toHaveBeenCalledWith(mocks.auth, testUser.email, "not-a-real-password");
     expect(screen.getByRole("heading", { name: /Заметки/ })).toBeInTheDocument();
+  });
+
+  it("starts Google sign-in with a mobile-friendly redirect", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Продолжить с Google" }));
+
+    expect(mocks.signInWithRedirect).toHaveBeenCalledWith(mocks.auth, mocks.googleProvider);
+  });
+
+  it("links Google to the currently signed-in account", async () => {
+    const user = userEvent.setup();
+    await signInToNotes(user);
+    await user.click(screen.getByRole("button", { name: "Связать Google" }));
+
+    expect(mocks.linkWithRedirect).toHaveBeenCalledWith(testUser, mocks.googleProvider);
+  });
+
+  it("explains how to keep existing notes when Google is already a different provider", async () => {
+    mocks.getRedirectResult.mockRejectedValue({ code: "auth/account-exists-with-different-credential" });
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Войди по паролю, затем подключи Google");
   });
 
   it("does not show an empty list or active sync when loading notes fails", async () => {

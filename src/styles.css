@@ -290,10 +290,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .auth-form input:focus { border-color: var(--green); }
 .auth-form input::placeholder { color: #a2ada5; }
 .auth-submit { width: 100%; margin-top: 4px; }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 12px; color: #89958d; font-size: 10px; }
+.auth-divider::before, .auth-divider::after { height: 1px; flex: 1; background: #e3e9e4; content: ""; }
+.button-google { width: 100%; border-color: #d5dfd7; color: #35423b; background: #fff; }
+.button-google:hover:not(:disabled) { border-color: #9eafa2; background: #f8faf8; }
+.google-mark { display: inline-grid; width: 19px; height: 19px; place-items: center; color: #4285f4; font-family: Arial, sans-serif; font-size: 16px; font-weight: 700; }
+.auth-note { margin: 15px 0 0; color: #7a867e; font-size: 11px; line-height: 1.55; text-align: center; }
 .form-error { margin: 0 0 13px; color: #a33f30; font-size: 12px; line-height: 1.5; }
 .auth-switch { margin: 20px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
 .auth-switch button { padding: 3px 2px; border: 0; color: var(--green); background: none; cursor: pointer; font-weight: 700; }
 .privacy-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 35px 0 0; color: #89958d; font-size: 10px; }
+.google-linked { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; background: #edf5ef; }
+.google-link-button { min-height: 36px; padding: 0 8px; font-size: 11px; }
 
 .setup-screen { display: flex; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 28px; background: var(--paper); }
 .setup-panel { width: min(100%, 530px); padding: 38px 42px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
@@ -333,6 +341,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 @media (max-width: 420px) {
   .account-controls { gap: 7px; }
   .account-email { max-width: 132px; font-size: 10px; }
+  .google-link-button { width: 34px; min-height: 34px; padding: 0; }
+  .google-link-button > span:last-child { display: none; }
+  .google-linked { width: 30px; height: 30px; }
   .signout-button { min-height: 36px; padding: 0 8px; }
   .sidebar-heading h1 { font-size: 27px; }
   .editor-overline { font-size: 9px; }
